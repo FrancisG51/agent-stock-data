@@ -1,0 +1,56 @@
+Q1：对比某段时间内两只股票的涨跌幅
+A1：
+第一步：分别找出每只股票在该时间段内的第一天和最后一天的收盘价
+第二步：计算涨跌幅 = (最后一天收盘价 - 第一天收盘价) / 第一天收盘价 * 100
+第三步：比较两只股票的涨跌幅大小
+
+********************************************************************************
+
+SQL写法示例（以对比2025年中芯国际和贵州茅台为例）：
+SELECT a.stock_name,
+       a.close AS first_close,
+       b.close AS last_close,
+       (b.close - a.close) / a.close * 100 AS pct_chg
+FROM (
+    SELECT stock_name, MIN(trade_date) AS min_date
+    FROM stock_daily_prices
+    WHERE stock_name IN ('中芯国际', '贵州茅台')
+      AND trade_date BETWEEN '2025-01-01' AND '2025-12-31'
+    GROUP BY stock_name
+) fd
+JOIN stock_daily_prices a ON a.stock_name = fd.stock_name AND a.trade_date = fd.min_date
+JOIN stock_daily_prices b ON b.stock_name = fd.stock_name AND b.trade_date = (
+    SELECT MAX(trade_date) FROM stock_daily_prices
+    WHERE stock_name = fd.stock_name AND trade_date BETWEEN '2025-01-01' AND '2025-12-31'
+);
+
+注意：表名一定是 stock_daily_prices，不是 stock_daily 或其他名字。
+
+********************************************************************************
+
+数据库表结构如下：
+
+-- 股票每日价格表
+CREATE TABLE stock_daily_prices (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    trade_date DATE NOT NULL,
+    stock_name VARCHAR(50) NOT NULL,
+    ts_code VARCHAR(20) NOT NULL,
+    open DOUBLE, high DOUBLE, low DOUBLE, close DOUBLE,
+    pre_close DOUBLE, change DOUBLE, pct_chg DOUBLE,
+    vol DOUBLE, amount DOUBLE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+可查询的股票：贵州茅台(600519.SH)、五粮液(000858.SZ)、广发证券(000776.SZ)、中芯国际(688981.SH)、九安医疗(002432.SZ)、深万科(000002.SZ)、特变电工(600089.SH)、金风科技(002202.SZ)、长江电力(600900.SH)
+
+数据范围：2020-01-02 至今
+
+********************************************************************************
+
+常见查询示例：
+
+1. SELECT trade_date, close FROM stock_daily_prices WHERE stock_name='贵州茅台' AND trade_date BETWEEN '2024-01-01' AND '2024-12-31' ORDER BY trade_date;
+2. SELECT MAX(high), MIN(low), AVG(close) FROM stock_daily_prices WHERE stock_name='贵州茅台' AND trade_date BETWEEN '2024-01-01' AND '2024-12-31';
+3. SELECT trade_date, vol, pct_chg FROM stock_daily_prices WHERE stock_name='中芯国际' AND trade_date BETWEEN '2024-01-01' AND '2024-12-31' ORDER BY trade_date;
+4. SELECT trade_date, stock_name, vol FROM stock_daily_prices WHERE trade_date BETWEEN '2024-01-01' AND '2024-12-31' ORDER BY vol DESC LIMIT 10;
